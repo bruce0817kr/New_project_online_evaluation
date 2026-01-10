@@ -74,6 +74,15 @@ export const companyService = {
   getCompanyEvaluations: async (companyId) => {
     return await api.get(`/companies/${companyId}/evaluations`);
   },
+
+  /**
+   * 프로젝트별 기업 목록 조회
+   * @param {string} projectId - 프로젝트 ID
+   * @returns {Promise<Array>} 기업 목록
+   */
+  getCompaniesByProject: async (projectId) => {
+    return await api.get(`/projects/${projectId}/companies`);
+  },
 };
 
 export default companyService;
