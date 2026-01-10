@@ -6,6 +6,7 @@ import ProjectsPage from './admin/ProjectsPage';
 import CompaniesPage from './admin/CompaniesPage';
 import EvaluationsPage from './admin/EvaluationsPage';
 import UsersPage from './admin/UsersPage';
+import UXShowcase from './admin/UXShowcase';
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ function AdminDashboard() {
     { path: '/admin/companies', label: '기업 관리', icon: '🏢' },
     { path: '/admin/evaluations', label: '평가 관리', icon: '📝' },
     { path: '/admin/users', label: '사용자 관리', icon: '👥' },
+    { path: '/admin/ux-showcase', label: 'UX 쇼케이스', icon: '🎨' },
   ];
 
   return (
@@ -110,6 +112,7 @@ function AdminDashboard() {
           <Route path="companies/*" element={<CompaniesPage />} />
           <Route path="evaluations/*" element={<EvaluationsPage />} />
           <Route path="users/*" element={<UsersPage />} />
+          <Route path="ux-showcase" element={<UXShowcase />} />
         </Routes>
       </main>
     </div>

@@ -1,15 +1,19 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import { ToastProvider } from './contexts/ToastContext';
 import AdminDashboard from './pages/AdminDashboard';
 import EvaluatorPage from './pages/EvaluatorPage';
 import LoginPage from './pages/LoginPage';
 
 function App() {
   return (
-    <Router>
-      <div className="min-h-screen bg-gray-50">
-        <Routes>
+    <ErrorBoundary>
+      <ToastProvider>
+        <Router>
+          <div className="min-h-screen bg-gray-50">
+            <Routes>
           {/* 루트 경로는 로그인 페이지로 리다이렉트 */}
           <Route path="/" element={<Navigate to="/login" replace />} />
 
@@ -51,9 +55,11 @@ function App() {
               </div>
             }
           />
-        </Routes>
-      </div>
-    </Router>
+            </Routes>
+          </div>
+        </Router>
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
 
