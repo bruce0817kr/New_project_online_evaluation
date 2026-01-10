@@ -14,8 +14,10 @@ class Evaluation(Base):
     __tablename__ = "evaluations"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("projects.id"), nullable=True, index=True)
     company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id"), nullable=False, index=True)
     evaluator_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    order = Column(Float, nullable=True)  # 심사위원별 평가 순서
 
     # 평가 점수 데이터 (JSONB로 유연하게 저장)
     # 예시: {"항목1": 85, "항목2": 90, "항목3": {"세부1": 20, "세부2": 15}}

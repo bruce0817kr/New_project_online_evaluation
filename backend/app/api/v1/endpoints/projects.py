@@ -1,46 +1,140 @@
 """
-Project Management Endpoints
+Project Management Endpoints - 프로젝트 관리 API
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List
-from uuid import UUID
+from datetime import datetime
+from pydantic import BaseModel
 
 from app.core.database import get_db
+from app.core.security import get_current_user, require_admin
+from app.models.user import User
+from app.models.project import Project
+from app.models.company import Company
+from app.models.evaluation import Evaluation
 
 router = APIRouter()
 
 
-@router.get("/")
-async def list_projects(db: Session = Depends(get_db)):
-    """사업 목록 조회"""
-    # TODO: Implement project listing
-    return []
+# ============== Schemas ==============
+
+class ProjectCreate(BaseModel):
+    """프로젝트 생성"""
+    name: str
+    description: str = None
+    year: int
+    deadline: datetime
 
 
-@router.post("/")
-async def create_project(db: Session = Depends(get_db)):
-    """새 사업 생성"""
-    # TODO: Implement project creation
-    return {"message": "Project created"}
+class ProjectUpdate(BaseModel):
+    """프로젝트 수정"""
+    name: str = None
+    description: str = None
+    year: int = None
 
 
-@router.get("/{project_id}")
-async def get_project(project_id: UUID, db: Session = Depends(get_db)):
-    """사업 상세 조회"""
-    # TODO: Implement project retrieval
-    return {"id": str(project_id), "name": "Sample Project"}
+class ProjectResponse(BaseModel):
+    """프로젝트 응답"""
+    id: str
+    name: str
+    description: str = None
+    year: str
+    deadline: datetime = None
+    created_at: datetime
+    updated_at: datetime = None
+
+    class Config:
+        orm_mode = True
 
 
-@router.patch("/{project_id}")
-async def update_project(project_id: UUID, db: Session = Depends(get_db)):
-    """사업 정보 수정"""
-    # TODO: Implement project update
-    return {"message": "Project updated"}
+class CompanyResponse(BaseModel):
+    """기업 응답"""
+    id: str
+    name: str
+    business_number: str = None
+    ceo_name: str = None
+
+    class Config:
+        orm_mode = True
 
 
-@router.delete("/{project_id}")
-async def delete_project(project_id: UUID, db: Session = Depends(get_db)):
-    """사업 삭제"""
-    # TODO: Implement project deletion
-    return {"message": "Project deleted"}
+# ============== Endpoints ==============
+
+@router.get("/", response_model=List[ProjectResponse])
+async def list_projects(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """프로젝트 목록 조회"""
+    projects = db.query(Project).order_by(Project.created_at.desc()).all()
+
+    return [
+        ProjectResponse(
+            id=str(project.id),
+            name=project.name,
+            description=project.description,
+            year=project.year,
+            deadline=None,
+            created_at=project.created_at,
+            updated_at=project.updated_at
+        )
+        for project in projects
+    ]
+
+
+@router.post("/", response_model=ProjectResponse)
+async def create_project(
+    data: ProjectCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """새 프로젝트 생성"""
+
+    project = Project(
+        name=data.name,
+        description=data.description,
+        year=str(data.year)
+    )
+
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+
+    return ProjectResponse(
+        id=str(project.id),
+        name=project.name,
+        description=project.description,
+        year=project.year,
+        deadline=data.deadline,
+        created_at=project.created_at,
+        updated_at=project.updated_at
+    )
+
+
+@router.get("/{project_id}/companies", response_model=List[CompanyResponse])
+async def get_project_companies(
+    project_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """프로젝트별 기업 목록 조회"""
+
+    # 프로젝트 확인
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다")
+
+    # 기업 목록 조회
+    companies = db.query(Company).filter(Company.project_id == project_id).all()
+
+    return [
+        CompanyResponse(
+            id=str(company.id),
+            name=company.name,
+            business_number=company.business_number,
+            ceo_name=company.ceo_name
+        )
+        for company in companies
+    ]

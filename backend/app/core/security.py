@@ -182,6 +182,15 @@ def authenticate_user(db: Session, username: str, password: str) -> Optional[Use
     return user
 
 
+# Alias for backward compatibility
+require_admin = get_current_active_admin
+
+
+def get_password_hash(password: str) -> str:
+    """비밀번호 해싱 (hash_password의 별칭)"""
+    return hash_password(password)
+
+
 def validate_password_strength(password: str) -> tuple[bool, str]:
     """
     비밀번호 강도 검증
