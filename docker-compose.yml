@@ -35,7 +35,17 @@ services:
       ALGORITHM: HS256
       ACCESS_TOKEN_EXPIRE_MINUTES: 480
       UPLOAD_DIR: /app/uploads
+      MAX_UPLOAD_SIZE: 52428800
+      # OCR Settings
       OCR_LANGUAGE: kor+eng
+      OCR_CONFIG: "--psm 6 --oem 3"
+      OCR_FALLBACK_STRATEGY: ${OCR_FALLBACK_STRATEGY:-on_low_confidence}
+      OCR_CONFIDENCE_THRESHOLD: ${OCR_CONFIDENCE_THRESHOLD:-0.85}
+      OCR_ENABLE_ENSEMBLE: ${OCR_ENABLE_ENSEMBLE:-false}
+      # Optional AI Vision API Keys
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
     volumes:
       - ./backend:/app
       - backend_uploads:/app/uploads
