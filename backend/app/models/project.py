@@ -1,7 +1,7 @@
 """
 Project Model - 사업 프로젝트
 """
-from sqlalchemy import Column, String, DateTime, Enum, Text
+from sqlalchemy import Column, String, DateTime, Enum, Text, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -32,8 +32,13 @@ class Project(Base):
     stage = Column(Enum(ProjectStage), nullable=False, default=ProjectStage.DOCUMENT)
     status = Column(Enum(ProjectStatus), nullable=False, default=ProjectStatus.DRAFT)
     year = Column(String(4), nullable=False)  # 사업 연도
+
+    # 평가 배점표 템플릿 연결
+    scoring_template_id = Column(UUID(as_uuid=True), ForeignKey("scoring_templates.id"), nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
     companies = relationship("Company", back_populates="project", cascade="all, delete-orphan")
+    scoring_template = relationship("ScoringTemplate")

@@ -25,6 +25,8 @@ function EvaluationDetailPage() {
   const [error, setError] = useState(null);
   const [documentInfo, setDocumentInfo] = useState(null);
   const [showDocument, setShowDocument] = useState(false);
+  const [showSignatureModal, setShowSignatureModal] = useState(false);
+  const [signatureData, setSignatureData] = useState(null);
 
   // 평가 상세 로드
   useEffect(() => {
@@ -77,15 +79,21 @@ function EvaluationDetailPage() {
   // 자동 저장 훅 (3초 디바운스, 제출되지 않았을 때만)
   useAutoSave(currentEvaluation, handleAutoSave, 3000, !isSubmitted());
 
-  // 평가 제출
+  // 제출 버튼 클릭 (서명 모달 열기)
+  const handleSubmitClick = () => {
+    setShowSignatureModal(true);
+  };
+
+  // 평가 제출 (서명 포함)
   const handleSubmit = async () => {
-    if (!window.confirm('평가를 제출하시겠습니까? 제출 후에는 수정할 수 없습니다.')) {
+    if (!signatureData) {
+      alert('전자 서명을 입력해주세요');
       return;
     }
 
     try {
       setSubmitting(true);
-      await evaluationService.submitEvaluation(evaluationId);
+      await evaluationService.submitEvaluation(evaluationId, { signature_data: signatureData });
 
       alert('평가가 성공적으로 제출되었습니다!');
       navigate('/evaluator');
@@ -94,6 +102,7 @@ function EvaluationDetailPage() {
       alert(err.response?.data?.detail || '제출에 실패했습니다');
     } finally {
       setSubmitting(false);
+      setShowSignatureModal(false);
     }
   };
 
@@ -172,162 +181,250 @@ function EvaluationDetailPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="max-w-5xl mx-auto px-6 py-8">
-        {/* 서류 보기 섹션 */}
-        {documentInfo?.has_document && (
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="p-6 border-b border-gray-200">
+      {/* Main Content - Split View */}
+      <main className="h-[calc(100vh-100px)]">
+        <div className="h-full flex">
+          {/* Left Panel: PDF Viewer (60%) */}
+          <div className="w-3/5 border-r border-gray-200 flex flex-col bg-gray-50">
+            <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">사업계획서</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {documentInfo.filename} ({(documentInfo.file_size / 1024 / 1024).toFixed(2)} MB)
-                  </p>
+                  {documentInfo?.has_document && (
+                    <p className="text-sm text-gray-600 mt-1">
+                      {documentInfo.filename} ({(documentInfo.file_size / 1024 / 1024).toFixed(2)} MB)
+                    </p>
+                  )}
                 </div>
-                <button
-                  onClick={() => setShowDocument(!showDocument)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d={showDocument ? "M6 18L18 6M6 6l12 12" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z"}
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d={showDocument ? "" : "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"}
-                    />
-                  </svg>
-                  {showDocument ? '닫기' : '서류 보기'}
-                </button>
               </div>
             </div>
 
-            {/* 문서 뷰어 */}
-            {showDocument && (
-              <div className="p-6 bg-gray-50">
-                {documentInfo.file_type === '.pdf' ? (
+            {/* Document Viewer Area */}
+            <div className="flex-1 overflow-auto p-6">
+              {documentInfo?.has_document ? (
+                documentInfo.file_type === '.pdf' ? (
                   <iframe
                     src={companyService.getDocumentUrl(evaluation.company_id)}
-                    className="w-full h-[600px] border border-gray-300 rounded-lg"
+                    className="w-full h-full border border-gray-300 rounded-lg"
                     title="사업계획서"
                   />
                 ) : (
-                  <div className="text-center py-12">
-                    <p className="text-gray-600 mb-4">
-                      미리보기를 지원하지 않는 파일 형식입니다.
-                    </p>
-                    <button
-                      onClick={async () => {
-                        try {
-                          const blob = await companyService.downloadDocument(evaluation.company_id);
-                          const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = documentInfo.filename;
-                          a.click();
-                          window.URL.revokeObjectURL(url);
-                        } catch (err) {
-                          console.error('Download failed:', err);
-                          alert('다운로드에 실패했습니다');
-                        }
-                      }}
-                      className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                    >
-                      다운로드
-                    </button>
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <p className="text-gray-600 mb-4">
+                        미리보기를 지원하지 않는 파일 형식입니다.
+                      </p>
+                      <button
+                        onClick={async () => {
+                          try {
+                            const blob = await companyService.downloadDocument(evaluation.company_id);
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = documentInfo.filename;
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                          } catch (err) {
+                            console.error('Download failed:', err);
+                            alert('다운로드에 실패했습니다');
+                          }
+                        }}
+                        className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                      >
+                        다운로드
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            )}
+                )
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <p className="mt-2 text-sm text-gray-600">⚠️ 이 기업은 아직 서류를 제출하지 않았습니다.</p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        )}
 
-        {/* 서류 없음 안내 */}
-        {documentInfo && !documentInfo.has_document && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-            <p className="text-sm text-yellow-800">
-              ⚠️ 이 기업은 아직 서류를 제출하지 않았습니다.
-            </p>
-          </div>
-        )}
-
-        <div className="bg-white rounded-lg shadow">
-          {/* 점수 입력 섹션 */}
-          <div className="p-6 border-b border-gray-200">
+          {/* Right Panel: Evaluation Form (40%) */}
+          <div className="w-2/5 flex flex-col bg-white">
+            <div className="flex-1 overflow-y-auto">
+              {/* 점수 입력 섹션 */}
+          <div className="p-6">
             <h2 className="text-lg font-semibold mb-4">평가 점수</h2>
 
-            <div className="space-y-4">
-              {['기술성', '사업성', '경제성'].map((criteria) => (
-                <div key={criteria}>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {criteria}
-                  </label>
+            {/* 동적 배점표 렌더링 */}
+            {evaluation.scoring_template ? (
+              <div className="space-y-6">
+                {evaluation.scoring_template.sections.map((section, sectionIdx) => (
+                  <div key={sectionIdx} className="border-b border-gray-200 pb-6 last:border-0">
+                    <h3 className="font-medium text-gray-900 mb-3">
+                      {section.section_name} (배점: {section.max_score}점)
+                    </h3>
 
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={evaluation.scores?.[criteria] || 0}
-                      onChange={(e) => updateScore(criteria, e.target.value)}
-                      disabled={readOnly}
-                      className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
-                    />
+                    <div className="space-y-4">
+                      {section.items.map((item) => (
+                        <div key={item.item_id} className="bg-gray-50 p-4 rounded-lg">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <label className="block text-sm font-medium text-gray-700">
+                                {item.title}
+                              </label>
+                              {item.description && (
+                                <p className="text-xs text-gray-500 mt-1">{item.description}</p>
+                              )}
+                            </div>
+                            <span className="text-sm text-gray-600 ml-2">/ {item.max_score}점</span>
+                          </div>
+
+                          <input
+                            type="number"
+                            min="0"
+                            max={item.max_score}
+                            step={item.step || 1}
+                            value={evaluation.scores?.[item.item_id] || 0}
+                            onChange={(e) => updateScore(item.item_id, e.target.value)}
+                            disabled={readOnly}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              /* 기본 하드코딩 항목 (템플릿 없을 때) */
+              <div className="space-y-4">
+                {['기술성', '사업성', '경제성'].map((criteria) => (
+                  <div key={criteria}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {criteria}
+                    </label>
 
                     <input
                       type="number"
                       min="0"
                       max="100"
-                      step="0.1"
                       value={evaluation.scores?.[criteria] || 0}
                       onChange={(e) => updateScore(criteria, e.target.value)}
                       disabled={readOnly}
-                      className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                     />
-
-                    <span className="text-sm text-gray-600 w-8">점</span>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 코멘트 섹션 */}
-          <div className="p-6">
+          <div className="p-6 border-t border-gray-200">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              평가 의견
+              종합 의견 (필수)
             </label>
 
             <textarea
               value={evaluation.comments || ''}
               onChange={(e) => updateComments(e.target.value)}
               disabled={readOnly}
-              rows={6}
+              rows={4}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 resize-none"
-              placeholder="평가 의견을 입력하세요..."
+              placeholder="종합 평가 의견을 입력하세요... (최소 50자)"
             />
           </div>
+            </div>
 
-          {/* 액션 버튼 */}
-          {!readOnly && (
+            {/* Sticky Footer: 총점 및 액션 버튼 */}
+            <div className="flex-shrink-0 border-t border-gray-200 bg-gray-50">
+              {/* 총점 표시 */}
+              <div className="px-6 py-3 bg-blue-50 border-b border-blue-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">총점</span>
+                  <span className="text-2xl font-bold text-blue-600">
+                    {Object.values(evaluation.scores || {}).reduce((sum, val) => sum + (parseFloat(val) || 0), 0).toFixed(1)}
+                    <span className="text-sm text-gray-600 ml-1">
+                      / {evaluation.scoring_template?.total_score || 100}점
+                    </span>
+                  </span>
+                </div>
+              </div>
+
+              {/* 액션 버튼 */}
+              {!readOnly ? (
+                <div className="p-4 flex justify-end gap-3">
+                  <button
+                    onClick={() => navigate('/evaluator')}
+                    className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    목록으로
+                  </button>
+
+                  <button
+                    onClick={handleSubmitClick}
+                    disabled={submitting}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    평가 제출
+                  </button>
+                </div>
+              ) : (
+                <div className="p-4 bg-green-50">
+                  <p className="text-sm text-green-800 text-center">
+                    ✓ {new Date(evaluation.submitted_at).toLocaleString('ko-KR')}에 제출 완료
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {/* 전자 서명 모달 */}
+      {showSignatureModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold">전자 서명</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                평가 제출을 위해 서명을 입력해주세요
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="border-2 border-gray-300 rounded-lg bg-gray-50 mb-4">
+                <input
+                  type="text"
+                  placeholder="성명을 입력하세요"
+                  value={signatureData || ''}
+                  onChange={(e) => setSignatureData(e.target.value)}
+                  className="w-full px-4 py-8 text-center text-2xl font-cursive border-0 bg-transparent focus:outline-none"
+                  style={{ fontFamily: 'cursive' }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                * 제출 후에는 수정할 수 없습니다
+              </p>
+            </div>
+
             <div className="p-6 bg-gray-50 rounded-b-lg flex justify-end gap-3">
               <button
-                onClick={() => navigate('/evaluator')}
-                className="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                onClick={() => {
+                  setShowSignatureModal(false);
+                  setSignatureData(null);
+                }}
+                className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                disabled={submitting}
               >
                 취소
               </button>
 
               <button
                 onClick={handleSubmit}
-                disabled={submitting}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                disabled={submitting || !signatureData}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {submitting ? (
                   <>
@@ -335,24 +432,13 @@ function EvaluationDetailPage() {
                     제출 중...
                   </>
                 ) : (
-                  '평가 제출'
+                  '제출 확인'
                 )}
               </button>
             </div>
-          )}
-
-          {/* 제출 완료 안내 */}
-          {readOnly && (
-            <div className="p-6 bg-green-50 rounded-b-lg">
-              <p className="text-sm text-green-800">
-                이 평가는 {new Date(evaluation.submitted_at).toLocaleString('ko-KR')}에 제출되었습니다.
-                <br />
-                제출된 평가는 수정할 수 없습니다.
-              </p>
-            </div>
-          )}
+          </div>
         </div>
-      </main>
+      )}
     </div>
   );
 }

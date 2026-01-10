@@ -38,6 +38,9 @@ class EvaluationResponse(BaseModel):
     created_at: datetime
     updated_at: datetime = None
 
+    # 동적 배점표 정보
+    scoring_template: dict = None
+
     class Config:
         orm_mode = True
 
@@ -113,8 +116,10 @@ async def get_evaluation_detail(
     current_user: User = Depends(get_current_user)
 ):
     """
-    평가 상세 조회
+    평가 상세 조회 (배점표 템플릿 포함)
     """
+    from app.models.scoring_template import ScoringTemplate
+
     evaluation = db.query(Evaluation).filter(
         Evaluation.id == evaluation_id
     ).options(
@@ -128,6 +133,20 @@ async def get_evaluation_detail(
     # 권한 체크: 본인 평가이거나 관리자
     if current_user.role != "admin" and str(evaluation.evaluator_id) != str(current_user.id):
         raise HTTPException(status_code=403, detail="접근 권한이 없습니다")
+
+    # 배점표 템플릿 조회
+    scoring_template = None
+    if evaluation.company and evaluation.company.project and evaluation.company.project.scoring_template_id:
+        template = db.query(ScoringTemplate).filter(
+            ScoringTemplate.id == evaluation.company.project.scoring_template_id
+        ).first()
+        if template:
+            scoring_template = {
+                "id": str(template.id),
+                "name": template.name,
+                "total_score": template.total_score,
+                "sections": template.sections.get("sections", []) if template.sections else []
+            }
 
     return EvaluationResponse(
         id=str(evaluation.id),
@@ -143,7 +162,8 @@ async def get_evaluation_detail(
         is_submitted=evaluation.is_submitted,
         submitted_at=evaluation.submitted_at,
         created_at=evaluation.created_at,
-        updated_at=evaluation.updated_at
+        updated_at=evaluation.updated_at,
+        scoring_template=scoring_template
     )
 
 

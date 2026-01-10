@@ -43,10 +43,11 @@ export const evaluationService = {
   /**
    * 평가 제출 (최종 제출, 이후 수정 불가)
    * @param {string} id - 평가 ID
+   * @param {Object} data - { signature_data?: string }
    * @returns {Promise<Object>} 제출 결과
    */
-  submitEvaluation: async (id) => {
-    return await api.post(`/evaluations/${id}/submit`);
+  submitEvaluation: async (id, data = {}) => {
+    return await api.post(`/evaluations/${id}/submit`, data);
   },
 
   /**

@@ -4,7 +4,7 @@ API v1 Router
 from fastapi import APIRouter
 
 # Import individual routers
-from app.api.v1.endpoints import auth, projects, companies, evaluations, ocr, admin
+from app.api.v1.endpoints import auth, projects, companies, evaluations, ocr, admin, templates
 
 router = APIRouter()
 
@@ -15,3 +15,4 @@ router.include_router(companies.router, prefix="/companies", tags=["Companies"])
 router.include_router(evaluations.router, prefix="/evaluations", tags=["Evaluations"])
 router.include_router(ocr.router, prefix="/ocr", tags=["OCR"])
 router.include_router(admin.router, prefix="/admin", tags=["Admin"])
+router.include_router(templates.router, prefix="/templates", tags=["Templates"])
