@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEvaluationStore } from '../stores/evaluationStore';
 import evaluationService from '../services/evaluationService';
+import companyService from '../services/companyService';
 import { useAutoSave } from '../hooks/useAutoSave';
 
 function EvaluationDetailPage() {
@@ -22,6 +23,8 @@ function EvaluationDetailPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [documentInfo, setDocumentInfo] = useState(null);
+  const [showDocument, setShowDocument] = useState(false);
 
   // 평가 상세 로드
   useEffect(() => {
@@ -35,6 +38,16 @@ function EvaluationDetailPage() {
 
       const data = await evaluationService.getEvaluationById(evaluationId);
       setCurrentEvaluation(data);
+
+      // 서류 정보 로드
+      if (data.company_id) {
+        try {
+          const docInfo = await companyService.getDocumentInfo(data.company_id);
+          setDocumentInfo(docInfo);
+        } catch (err) {
+          console.error('Failed to load document info:', err);
+        }
+      }
     } catch (err) {
       console.error('Failed to load evaluation:', err);
       setError(err.response?.data?.detail || '평가를 불러오는데 실패했습니다');
@@ -161,6 +174,89 @@ function EvaluationDetailPage() {
 
       {/* Main Content */}
       <main className="max-w-5xl mx-auto px-6 py-8">
+        {/* 서류 보기 섹션 */}
+        {documentInfo?.has_document && (
+          <div className="bg-white rounded-lg shadow mb-6">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">사업계획서</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {documentInfo.filename} ({(documentInfo.file_size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDocument(!showDocument)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d={showDocument ? "M6 18L18 6M6 6l12 12" : "M15 12a3 3 0 11-6 0 3 3 0 016 0z"}
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d={showDocument ? "" : "M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"}
+                    />
+                  </svg>
+                  {showDocument ? '닫기' : '서류 보기'}
+                </button>
+              </div>
+            </div>
+
+            {/* 문서 뷰어 */}
+            {showDocument && (
+              <div className="p-6 bg-gray-50">
+                {documentInfo.file_type === '.pdf' ? (
+                  <iframe
+                    src={companyService.getDocumentUrl(evaluation.company_id)}
+                    className="w-full h-[600px] border border-gray-300 rounded-lg"
+                    title="사업계획서"
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600 mb-4">
+                      미리보기를 지원하지 않는 파일 형식입니다.
+                    </p>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const blob = await companyService.downloadDocument(evaluation.company_id);
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = documentInfo.filename;
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                        } catch (err) {
+                          console.error('Download failed:', err);
+                          alert('다운로드에 실패했습니다');
+                        }
+                      }}
+                      className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      다운로드
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 서류 없음 안내 */}
+        {documentInfo && !documentInfo.has_document && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-yellow-800">
+              ⚠️ 이 기업은 아직 서류를 제출하지 않았습니다.
+            </p>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow">
           {/* 점수 입력 섹션 */}
           <div className="p-6 border-b border-gray-200">

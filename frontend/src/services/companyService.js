@@ -83,6 +83,54 @@ export const companyService = {
   getCompaniesByProject: async (projectId) => {
     return await api.get(`/projects/${projectId}/companies`);
   },
+
+  /**
+   * 기업 서류 업로드 (관리자)
+   * @param {string} companyId - 기업 ID
+   * @param {File} file - 업로드할 파일 (PDF/Word)
+   * @returns {Promise<Object>} 업로드 결과
+   */
+  uploadDocument: async (companyId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return await api.post(`/companies/${companyId}/upload-document`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  /**
+   * 기업 서류 다운로드
+   * @param {string} companyId - 기업 ID
+   * @returns {Promise<Blob>} 파일 Blob
+   */
+  downloadDocument: async (companyId) => {
+    return await api.get(`/companies/${companyId}/document`, {
+      responseType: 'blob',
+    });
+  },
+
+  /**
+   * 기업 서류 정보 조회
+   * @param {string} companyId - 기업 ID
+   * @returns {Promise<Object>} 서류 정보 { has_document, filename?, file_size?, file_type? }
+   */
+  getDocumentInfo: async (companyId) => {
+    return await api.get(`/companies/${companyId}/document-info`);
+  },
+
+  /**
+   * 기업 서류 URL 가져오기 (iframe용)
+   * @param {string} companyId - 기업 ID
+   * @returns {string} 서류 다운로드 URL
+   */
+  getDocumentUrl: (companyId) => {
+    const token = localStorage.getItem('token');
+    const baseURL = api.defaults.baseURL || '';
+    return `${baseURL}/companies/${companyId}/document?token=${token}`;
+  },
 };
 
 export default companyService;

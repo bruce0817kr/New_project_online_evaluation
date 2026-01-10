@@ -7,12 +7,16 @@ export const evaluationService = {
   /**
    * 내 평가 목록 조회
    * @param {string} status - 'in_progress' | 'submitted' | null
+   * @param {string} projectId - 프로젝트 ID 필터 (선택)
    * @returns {Promise<Array>} 평가 목록
    */
-  getMyEvaluations: async (status = null) => {
+  getMyEvaluations: async (status = null, projectId = null) => {
     const params = {};
     if (status) {
       params.status = status;
+    }
+    if (projectId) {
+      params.project_id = projectId;
     }
     return await api.get('/evaluations/my', { params });
   },

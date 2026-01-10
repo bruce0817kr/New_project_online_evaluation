@@ -18,6 +18,8 @@ function CompaniesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showDocumentModal, setShowDocumentModal] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     name: '',
@@ -29,6 +31,7 @@ function CompaniesPage() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   useEffect(() => {
     loadCompanies();
@@ -133,6 +136,43 @@ function CompaniesPage() {
       console.error('Failed to delete company:', err);
       alert(err.response?.data?.detail || '기업 삭제에 실패했습니다');
     }
+  };
+
+  const handleDocumentUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // 파일 타입 검증
+    const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!validTypes.includes(file.type)) {
+      alert('PDF 또는 Word 문서만 업로드 가능합니다');
+      return;
+    }
+
+    // 파일 크기 검증 (50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert('파일 크기는 50MB 이하여야 합니다');
+      return;
+    }
+
+    try {
+      setUploadingDocument(true);
+      await companyService.uploadDocument(selectedCompany.id, file);
+      alert('서류가 업로드되었습니다');
+      setShowDocumentModal(false);
+      setSelectedCompany(null);
+      await loadCompanies(); // 목록 새로고침
+    } catch (err) {
+      console.error('Document upload failed:', err);
+      alert(err.response?.data?.detail || '서류 업로드에 실패했습니다');
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const openDocumentModal = (company) => {
+    setSelectedCompany(company);
+    setShowDocumentModal(true);
   };
 
   const filteredCompanies = companies.filter((company) =>
@@ -242,17 +282,89 @@ function CompaniesPage() {
                     <div className="text-sm text-gray-600">{company.phone || '-'}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => handleDelete(company.id, company.name)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      삭제
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        onClick={() => openDocumentModal(company)}
+                        className="text-blue-600 hover:text-blue-900"
+                      >
+                        서류 업로드
+                      </button>
+                      <button
+                        onClick={() => handleDelete(company.id, company.name)}
+                        className="text-red-600 hover:text-red-900"
+                      >
+                        삭제
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* 서류 업로드 모달 */}
+      {showDocumentModal && selectedCompany && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold">사업계획서 업로드</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedCompany.name}
+              </p>
+            </div>
+
+            <div className="p-6">
+              <div className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg p-8">
+                <div className="text-center">
+                  <svg
+                    className="mx-auto h-12 w-12 text-blue-400"
+                    stroke="currentColor"
+                    fill="none"
+                    viewBox="0 0 48 48"
+                  >
+                    <path
+                      d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  <div className="mt-4">
+                    <label
+                      htmlFor="document-upload"
+                      className="cursor-pointer inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                    >
+                      {uploadingDocument ? '업로드 중...' : '파일 선택'}
+                      <input
+                        id="document-upload"
+                        type="file"
+                        className="sr-only"
+                        accept="application/pdf,.doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        onChange={handleDocumentUpload}
+                        disabled={uploadingDocument}
+                      />
+                    </label>
+                  </div>
+                  <p className="mt-2 text-xs text-gray-500">PDF, Word (최대 50MB)</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6 bg-gray-50 rounded-b-lg flex justify-end">
+              <button
+                onClick={() => {
+                  setShowDocumentModal(false);
+                  setSelectedCompany(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                disabled={uploadingDocument}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

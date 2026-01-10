@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import evaluationService from '../services/evaluationService';
+import projectService from '../services/projectService';
 import EvaluationDetailPage from './EvaluationDetailPage';
 
 function EvaluatorPage() {
@@ -21,14 +22,30 @@ function EvaluationListPage() {
   const { user, logout } = useAuth();
 
   const [evaluations, setEvaluations] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [filter, setFilter] = useState('all'); // 'all' | 'in_progress' | 'submitted'
+  const [selectedProject, setSelectedProject] = useState('all'); // 프로젝트 필터
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // 프로젝트 목록 로드
+  useEffect(() => {
+    loadProjects();
+  }, []);
 
   // 평가 목록 로드
   useEffect(() => {
     loadEvaluations();
-  }, [filter]);
+  }, [filter, selectedProject]);
+
+  const loadProjects = async () => {
+    try {
+      const data = await projectService.getProjects();
+      setProjects(data);
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+    }
+  };
 
   const loadEvaluations = async () => {
     try {
@@ -36,7 +53,9 @@ function EvaluationListPage() {
       setError(null);
 
       const status = filter === 'all' ? null : filter;
-      const data = await evaluationService.getMyEvaluations(status);
+      const projectId = selectedProject === 'all' ? null : selectedProject;
+
+      const data = await evaluationService.getMyEvaluations(status, projectId);
 
       setEvaluations(data);
     } catch (err) {
@@ -97,6 +116,25 @@ function EvaluationListPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="text-sm font-medium text-gray-600 mb-2">제출완료</div>
             <div className="text-3xl font-bold text-green-600">{stats.submitted}</div>
+          </div>
+        </div>
+
+        {/* 프로젝트 필터 */}
+        <div className="bg-white rounded-lg shadow mb-4 p-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">사업 선택:</label>
+            <select
+              value={selectedProject}
+              onChange={(e) => setSelectedProject(e.target.value)}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">전체 사업</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name} ({project.year})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
