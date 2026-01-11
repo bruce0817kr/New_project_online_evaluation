@@ -39,10 +39,19 @@ class Settings(BaseSettings):
     # OCR Settings
     OCR_LANGUAGE: str = "kor+eng"
     OCR_CONFIG: str = "--psm 6 --oem 3"
+    OCR_FALLBACK_STRATEGY: str = "on_low_confidence"
+    OCR_CONFIDENCE_THRESHOLD: str = "0.85"
+    OCR_ENABLE_ENSEMBLE: str = "false"
+
+    # Optional AI Vision API Keys
+    OPENAI_API_KEY: str = ""
+    GOOGLE_API_KEY: str = ""
+    MISTRAL_API_KEY: str = ""
 
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "allow"  # Allow extra fields from .env
 
 
 settings = Settings()
