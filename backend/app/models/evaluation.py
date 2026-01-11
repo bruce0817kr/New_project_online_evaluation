@@ -43,3 +43,4 @@ class Evaluation(Base):
     # Relationships
     company = relationship("Company", back_populates="evaluations")
     evaluator = relationship("User")
+    score_history = relationship("ScoreHistory", back_populates="evaluation", cascade="all, delete-orphan")

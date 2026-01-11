@@ -242,6 +242,31 @@ async def update_template(
     )
 
 
+@router.patch("/{template_id}/toggle-active")
+async def toggle_template_active(
+    template_id: str,
+    data: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin)
+):
+    """
+    템플릿 활성화/비활성화 (관리자)
+    """
+    template = db.query(ScoringTemplate).filter(
+        ScoringTemplate.id == template_id
+    ).first()
+
+    if not template:
+        raise HTTPException(status_code=404, detail="템플릿을 찾을 수 없습니다")
+
+    is_active = data.get("is_active", True)
+    template.is_active = is_active
+    template.updated_at = datetime.utcnow()
+    db.commit()
+
+    return {"message": f"템플릿이 {'활성화' if is_active else '비활성화'}되었습니다"}
+
+
 @router.post("/{template_id}/set-default")
 async def set_default_template(
     template_id: str,

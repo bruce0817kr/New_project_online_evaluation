@@ -7,6 +7,7 @@ import CompaniesPage from './admin/CompaniesPage';
 import EvaluationsPage from './admin/EvaluationsPage';
 import AssignmentsPage from './admin/AssignmentsPage';
 import UsersPage from './admin/UsersPage';
+import TemplatesPage from './admin/TemplatesPage';
 import UXShowcase from './admin/UXShowcase';
 
 function AdminDashboard() {
@@ -18,6 +19,7 @@ function AdminDashboard() {
     { path: '/admin', label: '대시보드', icon: '📊', end: true },
     { path: '/admin/projects', label: '사업 관리', icon: '📁' },
     { path: '/admin/companies', label: '기업 관리', icon: '🏢' },
+    { path: '/admin/templates', label: '템플릿 관리', icon: '📋' },
     { path: '/admin/assignments', label: '평가 배정', icon: '🔗' },
     { path: '/admin/evaluations', label: '평가 현황', icon: '📝' },
     { path: '/admin/users', label: '사용자 관리', icon: '👥' },
@@ -112,6 +114,7 @@ function AdminDashboard() {
           <Route index element={<DashboardHome />} />
           <Route path="projects/*" element={<ProjectsPage />} />
           <Route path="companies/*" element={<CompaniesPage />} />
+          <Route path="templates" element={<TemplatesPage />} />
           <Route path="assignments" element={<AssignmentsPage />} />
           <Route path="evaluations/*" element={<EvaluationsPage />} />
           <Route path="users/*" element={<UsersPage />} />
