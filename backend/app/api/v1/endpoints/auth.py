@@ -3,9 +3,11 @@ Authentication Endpoints
 
 참고: .claude/skills/biz-support-eval-dev/references/security_standard.md
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from datetime import timedelta
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.core.database import get_db
 from app.core.security import (
@@ -20,10 +22,12 @@ from app.models.user import User
 from app.services.audit_service import log_audit_event
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(request: LoginRequest, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+async def login(request_obj: Request, request: LoginRequest, db: Session = Depends(get_db)):
     """
     사용자 로그인
 
@@ -31,6 +35,8 @@ async def login(request: LoginRequest, db: Session = Depends(get_db)):
     - **password**: 비밀번호
 
     성공 시 JWT 토큰 반환
+
+    **Rate Limit**: 5회/분 (브루트포스 방지)
     """
     user = authenticate_user(db, request.username, request.password)
 
@@ -105,7 +111,9 @@ async def get_current_user_info(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/register", response_model=UserResponse)
+@limiter.limit("3/minute")
 async def register_user(
+    request: Request,
     user_data: UserCreate,
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_current_user)
@@ -118,6 +126,8 @@ async def register_user(
     - **password**: 비밀번호 (8자 이상, 복잡도 검증)
     - **full_name**: 전체 이름
     - **role**: admin 또는 evaluator
+
+    **Rate Limit**: 3회/분
     """
     # 관리자 권한 확인 (이미 Depends에서 처리되지만 명시적으로)
     if current_admin.role != "admin":
@@ -165,7 +175,9 @@ async def register_user(
 
 
 @router.post("/change-password")
+@limiter.limit("5/minute")
 async def change_password(
+    request: Request,
     password_data: PasswordChange,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -175,6 +187,8 @@ async def change_password(
 
     - **current_password**: 현재 비밀번호
     - **new_password**: 새 비밀번호 (복잡도 검증)
+
+    **Rate Limit**: 5회/분 (브루트포스 방지)
     """
     from app.core.security import verify_password
 

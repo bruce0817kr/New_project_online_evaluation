@@ -2,13 +2,19 @@
 Main FastAPI Application Entry Point
 중소기업 선정평가 시스템 (SME Evaluation System)
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
 
 from app.core.config import settings
 from app.api.v1 import router as api_v1_router
+
+# Rate Limiter 초기화
+limiter = Limiter(key_func=get_remote_address)
 
 # Create FastAPI application
 app = FastAPI(
@@ -19,6 +25,10 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
+
+# Rate Limiter 등록
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS Middleware
 app.add_middleware(
