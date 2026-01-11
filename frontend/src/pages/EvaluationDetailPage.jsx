@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useEvaluationStore } from '../stores/evaluationStore';
 import evaluationService from '../services/evaluationService';
 import companyService from '../services/companyService';
 import { useAutoSave } from '../hooks/useAutoSave';
+import SignatureCanvas from 'react-signature-canvas';
 
 function EvaluationDetailPage() {
   const { evaluationId } = useParams();
@@ -27,6 +28,9 @@ function EvaluationDetailPage() {
   const [showDocument, setShowDocument] = useState(false);
   const [showSignatureModal, setShowSignatureModal] = useState(false);
   const [signatureData, setSignatureData] = useState(null);
+
+  // Canvas 서명 참조
+  const signatureCanvasRef = useRef(null);
 
   // 평가 상세 로드
   useEffect(() => {
@@ -86,14 +90,20 @@ function EvaluationDetailPage() {
 
   // 평가 제출 (서명 포함)
   const handleSubmit = async () => {
-    if (!signatureData) {
-      alert('전자 서명을 입력해주세요');
+    // Canvas가 비어있는지 확인
+    if (!signatureCanvasRef.current || signatureCanvasRef.current.isEmpty()) {
+      alert('서명을 작성해주세요');
       return;
     }
 
     try {
       setSubmitting(true);
-      await evaluationService.submitEvaluation(evaluationId, { signature_data: signatureData });
+
+      // Canvas에서 Base64 이미지 추출
+      const signatureImage = signatureCanvasRef.current.toDataURL('image/png');
+
+      // 서명 데이터와 함께 제출
+      await evaluationService.submitEvaluation(evaluationId, { signature_data: signatureImage });
 
       alert('평가가 성공적으로 제출되었습니다!');
       navigate('/evaluator');
@@ -382,38 +392,55 @@ function EvaluationDetailPage() {
         </div>
       </main>
 
-      {/* 전자 서명 모달 */}
+      {/* 전자 서명 모달 (Canvas 드로잉) */}
       {showSignatureModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full">
             <div className="p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold">전자 서명</h2>
               <p className="text-sm text-gray-600 mt-1">
-                평가 제출을 위해 서명을 입력해주세요
+                아래 서명란에 마우스나 터치로 직접 서명해주세요
               </p>
             </div>
 
             <div className="p-6">
-              <div className="border-2 border-gray-300 rounded-lg bg-gray-50 mb-4">
-                <input
-                  type="text"
-                  placeholder="성명을 입력하세요"
-                  value={signatureData || ''}
-                  onChange={(e) => setSignatureData(e.target.value)}
-                  className="w-full px-4 py-8 text-center text-2xl font-cursive border-0 bg-transparent focus:outline-none"
-                  style={{ fontFamily: 'cursive' }}
+              {/* Canvas 서명 패드 */}
+              <div className="border-2 border-gray-300 rounded-lg bg-white mb-4 relative">
+                <SignatureCanvas
+                  ref={signatureCanvasRef}
+                  canvasProps={{
+                    width: 600,
+                    height: 200,
+                    className: 'signature-canvas w-full h-full'
+                  }}
+                  backgroundColor="#ffffff"
+                  penColor="#000000"
                 />
+                {/* 안내 텍스트 */}
+                <div className="absolute top-2 left-2 text-xs text-gray-400 pointer-events-none">
+                  서명란
+                </div>
               </div>
-              <p className="text-xs text-gray-500 text-center">
-                * 제출 후에는 수정할 수 없습니다
-              </p>
+
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => signatureCanvasRef.current?.clear()}
+                  className="px-4 py-2 text-sm text-gray-600 hover:text-gray-900 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  disabled={submitting}
+                >
+                  🗑️ 지우기
+                </button>
+                <p className="text-xs text-gray-500">
+                  * 제출 후에는 수정할 수 없습니다
+                </p>
+              </div>
             </div>
 
             <div className="p-6 bg-gray-50 rounded-b-lg flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowSignatureModal(false);
-                  setSignatureData(null);
+                  signatureCanvasRef.current?.clear();
                 }}
                 className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
                 disabled={submitting}
@@ -423,7 +450,7 @@ function EvaluationDetailPage() {
 
               <button
                 onClick={handleSubmit}
-                disabled={submitting || !signatureData}
+                disabled={submitting}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-2"
               >
                 {submitting ? (
@@ -432,7 +459,7 @@ function EvaluationDetailPage() {
                     제출 중...
                   </>
                 ) : (
-                  '제출 확인'
+                  '✅ 서명하고 제출'
                 )}
               </button>
             </div>

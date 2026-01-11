@@ -34,8 +34,12 @@ class Evaluation(Base):
     is_submitted = Column(Boolean, default=False, nullable=False)
     submitted_at = Column(DateTime)
 
-    # 전자 서명 (이미지 경로 또는 Base64 데이터)
+    # 전자 서명 (Canvas Base64 이미지 데이터)
     signature_data = Column(Text)
+
+    # 부인 방지용 메타데이터
+    submit_ip = Column(String(45), nullable=True)  # IPv6 지원
+    submit_user_agent = Column(String(500), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

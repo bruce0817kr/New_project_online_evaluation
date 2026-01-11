@@ -1,7 +1,7 @@
 """
 Evaluation Endpoints - 평가 관련 API
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
@@ -256,12 +256,15 @@ async def update_evaluation(
 @router.post("/{evaluation_id}/submit", response_model=EvaluationResponse)
 async def submit_evaluation(
     evaluation_id: str,
+    request: Request,
     data: EvaluationSubmit = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     """
     평가 최종 제출
+    - 전자 서명 이미지 (Canvas Base64) 저장
+    - 부인 방지용 메타데이터 (IP, User-Agent) 저장
     """
     evaluation = db.query(Evaluation).filter(
         Evaluation.id == evaluation_id,
@@ -278,8 +281,21 @@ async def submit_evaluation(
     evaluation.is_submitted = True
     evaluation.submitted_at = datetime.utcnow()
 
+    # 전자 서명 저장
     if data and data.signature_data:
         evaluation.signature_data = data.signature_data
+
+    # 부인 방지용 메타데이터 저장
+    # 클라이언트 IP 추출 (프록시 고려)
+    client_ip = request.headers.get("X-Forwarded-For")
+    if client_ip:
+        # X-Forwarded-For는 여러 IP가 올 수 있으므로 첫 번째 IP 사용
+        client_ip = client_ip.split(",")[0].strip()
+    else:
+        client_ip = request.client.host if request.client else None
+
+    evaluation.submit_ip = client_ip
+    evaluation.submit_user_agent = request.headers.get("User-Agent")
 
     db.commit()
     db.refresh(evaluation)
